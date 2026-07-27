@@ -88,17 +88,15 @@ app.add_middleware(
 # Each module gets its own router file.
 # All routes are prefixed with /api/v1 for versioning.
 
-from app.api.routes import auth, inventory, stores, alerts
+from app.api.routes import auth, inventory, stores, alerts, pricing, reorder, routing
 
 app.include_router(auth.router,      prefix="/api/v1/auth",      tags=["Authentication"])
 app.include_router(stores.router,    prefix="/api/v1/stores",    tags=["Stores"])
 app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["Inventory (FEFO)"])
 app.include_router(alerts.router,    prefix="/api/v1/alerts",    tags=["Alerts"])
-# Future modules:
-# from app.api.routes import pricing, reorder, routing
-# app.include_router(pricing.router,   prefix="/api/v1/pricing",   tags=["Dynamic Pricing"])
-# app.include_router(reorder.router,   prefix="/api/v1/reorder",   tags=["Predictive Reorder"])
-# app.include_router(routing.router,   prefix="/api/v1/routing",   tags=["Secondary Routing"])
+app.include_router(pricing.router,   prefix="/api/v1/pricing",   tags=["Dynamic Pricing"])
+app.include_router(reorder.router,   prefix="/api/v1/reorder",   tags=["Predictive Reorder"])
+app.include_router(routing.router,   prefix="/api/v1/routing",   tags=["Secondary Routing"])
 
 
 # ============================================================

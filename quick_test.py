@@ -25,18 +25,35 @@ from app.models.models import Product, InventoryBatch, User, Store
 print(f"✅ Models: All 8 table classes imported OK")
 
 # Test 5: Schemas
-from app.schemas.schemas import ProductCreate, UserCreate, FEFOScanResult
-print(f"✅ Schemas: Pydantic models OK")
+from app.schemas.schemas import (
+    ProductCreate, UserCreate, FEFOScanResult,
+    PricingSuggestion, BundleSuggestion,
+    ReorderSuggestion, DemandForecast,
+    RouteSuggestion, RouteDispatch, RouteHistoryResponse
+)
+print(f"✅ Schemas: All Pydantic models OK (incl. new pricing, reorder, routing)")
 
 # Test 6: FEFO Engine
 from app.services.fefo_engine import FEFOEngine
 print(f"✅ FEFO Engine: Service class OK")
 
-# Test 7: API Routes import
-from app.api.routes import auth, inventory, stores, alerts
-print(f"✅ API Routes: All route modules OK")
+# Test 7: NEW — Dynamic Pricing Engine
+from app.services.pricing_engine import PricingEngine
+print(f"✅ Pricing Engine: Service class OK")
 
-# Test 8: Main app
+# Test 8: NEW — Predictive Reorder Engine
+from app.services.reorder_engine import ReorderEngine
+print(f"✅ Reorder Engine: Service class OK")
+
+# Test 9: NEW — Secondary Routing Engine
+from app.services.routing_engine import RoutingEngine
+print(f"✅ Routing Engine: Service class OK")
+
+# Test 10: API Routes import
+from app.api.routes import auth, inventory, stores, alerts, pricing, reorder, routing
+print(f"✅ API Routes: All 7 route modules OK (auth, stores, inventory, alerts, pricing, reorder, routing)")
+
+# Test 11: Main app
 from main import app
 print(f"✅ Main app: FastAPI app created with {len(app.routes)} routes")
 for route in app.routes:

@@ -167,6 +167,9 @@ document.querySelectorAll('.nav-item').forEach(item => {
             dashboard: '📊 Dashboard',
             inventory: '📦 Inventory',
             fefo: '🔍 FEFO Scan',
+            pricing: '💰 Dynamic Pricing',
+            reorder: '📋 Predictive Reorder',
+            routing: '🚛 Secondary Routing',
             alerts: '🔔 Alerts',
             products: '🏷️ Products',
             stores: '🏪 Stores',
@@ -182,6 +185,9 @@ document.querySelectorAll('.nav-item').forEach(item => {
         if (page === 'products') loadProducts();
         if (page === 'stores') loadStores();
         if (page === 'alerts') loadAlerts();
+        if (page === 'pricing') { loadPricing(); loadBundles(); }
+        if (page === 'reorder') loadReorder();
+        if (page === 'routing') { loadRouting(); loadRoutingHistory(); }
     });
 });
 
@@ -473,6 +479,202 @@ async function loadStores() {
     } catch (err) {
         document.getElementById('storesBody').innerHTML =
             '<tr><td colspan="4" class="loading">Error loading stores</td></tr>';
+    }
+}
+
+// ============================================================
+// DYNAMIC PRICING
+// ============================================================
+async function loadPricing() {
+    if (!state.token) return;
+    try {
+        const suggestions = await API.get('/api/v1/pricing/suggestions');
+        const tbody = document.getElementById('pricingBody');
+
+        // Update stats
+        document.getElementById('pricingTotal').textContent = suggestions.length;
+        document.getElementById('pricingAttention').textContent =
+            suggestions.filter(s => s.urgency === 'critical' || s.urgency === 'high').length;
+
+        if (suggestions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">✅ All prices are optimal</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = suggestions.map(s => {
+            const discountText = s.discount_pct > 0 ? `₹${s.suggested_price.toFixed(2)}` : '—';
+            const urgencyColors = { critical: 'badge-expired', high: 'badge-flagged', medium: 'badge-discounted', low: 'badge-active' };
+            return `<tr>
+                <td><strong>${s.product_name}</strong></td>
+                <td>₹${s.current_price.toFixed(2)}</td>
+                <td><strong>${discountText}</strong></td>
+                <td>${s.discount_pct > 0 ? `${s.discount_pct}%` : '0%'}</td>
+                <td><span class="badge badge-active">${s.strategy}</span></td>
+                <td><span class="badge ${urgencyColors[s.urgency] || 'badge-active'}">${s.urgency}</span></td>
+            </tr>`;
+        }).join('');
+    } catch (err) {
+        document.getElementById('pricingBody').innerHTML =
+            '<tr><td colspan="6" class="loading">Error loading pricing</td></tr>';
+    }
+}
+
+async function loadBundles() {
+    if (!state.token) return;
+    try {
+        const bundles = await API.get('/api/v1/pricing/bundles');
+        const container = document.getElementById('bundleList');
+        document.getElementById('pricingBundles').textContent = bundles.length;
+
+        if (bundles.length === 0) {
+            container.innerHTML = '<p class="empty-state">No bundle suggestions available</p>';
+            return;
+        }
+
+        container.innerHTML = bundles.map(b => `
+            <div class="alert-item">
+                <div class="alert-icon">🎯</div>
+                <div class="alert-content">
+                    <div class="alert-title">${b.bundle_name}</div>
+                    <div class="alert-message">Original: ₹${b.original_total.toFixed(2)} → Bundle: ₹${b.bundle_price.toFixed(2)} (Save ₹${b.savings.toFixed(2)})</div>
+                    <div class="alert-message" style="font-size:12px;color:var(--gray-400)">${b.reason}</div>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        document.getElementById('bundleList').innerHTML = '<p class="empty-state">Error loading bundles</p>';
+    }
+}
+
+async function applyPricing() {
+    if (!state.token) { toast('Please login first', 'error'); return; }
+    try {
+        toast('Applying dynamic pricing... 💰', 'info');
+        const result = await API.post('/api/v1/pricing/apply');
+        toast(result.message, 'success');
+        loadPricing();
+        loadDashboard();
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+// ============================================================
+// PREDICTIVE REORDER
+// ============================================================
+async function loadReorder(priority_filter) {
+    if (!state.token) return;
+    try {
+        let url = '/api/v1/reorder/suggestions';
+        if (priority_filter) url += `?priority=${priority_filter}`;
+        const suggestions = await API.get(url);
+        const tbody = document.getElementById('reorderBody');
+
+        // Update stats
+        document.getElementById('reorderTotal').textContent = suggestions.length;
+        document.getElementById('reorderCritical').textContent =
+            suggestions.filter(s => s.priority === 'critical').length;
+        const confidences = suggestions.filter(s => s.forecast_confidence > 0);
+        const avgConf = confidences.length > 0
+            ? (confidences.reduce((sum, s) => sum + s.forecast_confidence, 0) / confidences.length * 100).toFixed(0) + '%'
+            : '—';
+        document.getElementById('reorderConfidence').textContent = avgConf;
+
+        if (suggestions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading">✅ All stock levels are healthy</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = suggestions.map(s => {
+            const priorityColors = { critical: 'badge-expired', high: 'badge-flagged', medium: 'badge-discounted', low: 'badge-active' };
+            return `<tr>
+                <td><strong>${s.product_name}</strong><br><small>${s.sku}</small></td>
+                <td>${s.current_stock}</td>
+                <td>${s.avg_daily_sales}/day</td>
+                <td><strong>${s.days_of_stock_remaining}</strong>d</td>
+                <td><strong>${s.suggested_order_qty}</strong></td>
+                <td><span class="badge ${priorityColors[s.priority] || 'badge-active'}">${s.priority}</span></td>
+                <td>
+                    <button class="btn-alert btn-resolve" onclick="approveReorder(${s.product_id})" ${s.priority === 'none' ? 'disabled' : ''}>Approve</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (err) {
+        document.getElementById('reorderBody').innerHTML =
+            '<tr><td colspan="7" class="loading">Error loading reorder data</td></tr>';
+    }
+}
+
+async function approveReorder(productId) {
+    if (!state.token) { toast('Please login first', 'error'); return; }
+    try {
+        await API.post('/api/v1/reorder/action', {
+            reorder_id: productId,
+            action: 'approve'
+        });
+        toast('Reorder approved! 📋', 'success');
+        loadReorder();
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+// ============================================================
+// SECONDARY ROUTING
+// ============================================================
+async function loadRouting() {
+    if (!state.token) return;
+    try {
+        const suggestions = await API.get('/api/v1/routing/suggestions');
+        const tbody = document.getElementById('routingBody');
+
+        if (suggestions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">✅ No batches need routing at this time</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = suggestions.map(s => {
+            const urgencyColors = { critical: 'badge-expired', high: 'badge-flagged', medium: 'badge-discounted', low: 'badge-active' };
+            return `<tr>
+                <td><strong>${s.product_name}</strong></td>
+                <td>${s.quantity} ${s.unit}</td>
+                <td>${s.expiry_date} (${s.days_until_expiry}d)</td>
+                <td><span class="badge badge-active">${s.recommended_route.replace('_', ' ')}</span></td>
+                <td>₹${s.estimated_value_recovery.toFixed(2)}</td>
+                <td><span class="badge ${urgencyColors[s.urgency] || 'badge-active'}">${s.urgency}</span></td>
+            </tr>`;
+        }).join('');
+    } catch (err) {
+        document.getElementById('routingBody').innerHTML =
+            '<tr><td colspan="6" class="loading">Error loading routing</td></tr>';
+    }
+}
+
+async function loadRoutingHistory() {
+    if (!state.token) return;
+    try {
+        const history = await API.get('/api/v1/routing/history');
+        const tbody = document.getElementById('routingHistoryBody');
+
+        // Update stats
+        document.getElementById('routingDispatches').textContent = history.length;
+        document.getElementById('routingDiverted').textContent = history.reduce((sum, h) => sum + h.quantity_dispatched, 0);
+        document.getElementById('routingValue').textContent = '₹' + history.reduce((sum, h) => sum + h.value_recovered, 0).toFixed(0);
+
+        if (history.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">No dispatch history yet</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = history.map(h => `
+            <tr>
+                <td><strong>${h.product_name}</strong></td>
+                <td><span class="badge badge-active">${h.route_type.replace('_', ' ')}</span></td>
+                <td>${h.partner_name || '—'}</td>
+                <td>${h.quantity_dispatched}</td>
+                <td>₹${h.value_recovered.toFixed(2)}</td>
+                <td>${h.dispatch_date ? new Date(h.dispatch_date).toLocaleDateString() : '—'}</td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        document.getElementById('routingHistoryBody').innerHTML =
+            '<tr><td colspan="6" class="loading">Error loading history</td></tr>';
     }
 }
 

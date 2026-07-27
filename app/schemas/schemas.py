@@ -186,6 +186,126 @@ class AlertResponse(BaseModel):
         from_attributes = True
 
 
+# ── Dynamic Pricing Schemas ────────────────────────────────
+
+class PricingSuggestion(BaseModel):
+    """Suggested price adjustment for a batch"""
+    batch_id: int
+    product_name: str
+    category: str
+    current_price: float
+    suggested_price: float
+    discount_pct: float
+    days_until_expiry: int
+    strategy: str  # "time_decay", "elasticity", "loss_leader", "bundle"
+    reason: str
+    expected_revenue_recovery: float
+    urgency: str  # "low", "medium", "high", "critical"
+
+
+class BatchPriceUpdate(BaseModel):
+    """Manual price update for a batch"""
+    batch_id: int
+    new_price: float = Field(..., gt=0)
+    reason: Optional[str] = None
+
+
+class BundleSuggestion(BaseModel):
+    """Suggested product bundle"""
+    bundle_name: str
+    product_ids: list[int]
+    product_names: list[str]
+    original_total: float
+    bundle_price: float
+    savings: float
+    reason: str
+
+
+# ── Predictive Reorder Schemas ────────────────────────────
+
+class ReorderSuggestion(BaseModel):
+    """Suggested reorder for a product"""
+    product_id: int
+    product_name: str
+    sku: str
+    category: str
+    current_stock: float
+    avg_daily_sales: float
+    days_of_stock_remaining: float
+    suggested_order_qty: float
+    reorder_point: float
+    safety_stock: float
+    lead_time_days: int
+    forecast_confidence: float  # 0.0 to 1.0
+    season_factor: float
+    priority: str  # "low", "medium", "high", "critical"
+    reason: str
+
+
+class ReorderAction(BaseModel):
+    """Action a reorder suggestion"""
+    reorder_id: int
+    action: str = "approve"  # "approve" or "dismiss"
+    actual_order_qty: Optional[float] = None
+
+
+class DemandForecast(BaseModel):
+    """Demand forecast for a product"""
+    product_id: int
+    product_name: str
+    forecast_next_7_days: float
+    forecast_next_14_days: float
+    forecast_next_30_days: float
+    confidence: float
+    trend: str  # "increasing", "stable", "decreasing"
+
+
+# ── Secondary Routing Schemas ─────────────────────────────
+
+class RouteSuggestion(BaseModel):
+    """Suggested routing for a batch"""
+    batch_id: int
+    product_name: str
+    quantity: float
+    unit: str
+    expiry_date: date
+    days_until_expiry: int
+    suggested_routes: list[str]  # e.g., ["food_bank", "b2b_buyer", "composting"]
+    recommended_route: str
+    estimated_value_recovery: float
+    reason: str
+    urgency: str  # "low", "medium", "high", "critical"
+
+
+class RouteDispatch(BaseModel):
+    """Execute a routing dispatch"""
+    batch_id: int
+    route_type: str  # "food_bank", "b2b_buyer", "composting"
+    partner_name: str = Field(..., min_length=1)
+    partner_contact: Optional[str] = None
+    quantity_dispatched: float = Field(..., gt=0)
+    value_recovered: float = 0.0
+    note: Optional[str] = None
+
+
+class RouteHistoryResponse(BaseModel):
+    """Response for a routing dispatch record"""
+    id: int
+    batch_id: int
+    route_type: str
+    partner_name: Optional[str] = None
+    partner_contact: Optional[str] = None
+    quantity_dispatched: float
+    dispatch_date: Optional[datetime] = None
+    confirmed: bool
+    value_recovered: float
+    note: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # ── Generic Response Schemas ──────────────────────────────
 
 class MessageResponse(BaseModel):

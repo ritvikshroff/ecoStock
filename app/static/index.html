@@ -29,6 +29,9 @@
                 <li><a href="#" class="nav-item active" data-page="dashboard"><span>📊</span> Dashboard</a></li>
                 <li><a href="#" class="nav-item" data-page="inventory"><span>📦</span> Inventory</a></li>
                 <li><a href="#" class="nav-item" data-page="fefo"><span>🔍</span> FEFO Scan</a></li>
+                <li><a href="#" class="nav-item" data-page="pricing"><span>💰</span> Pricing</a></li>
+                <li><a href="#" class="nav-item" data-page="reorder"><span>📋</span> Reorder</a></li>
+                <li><a href="#" class="nav-item" data-page="routing"><span>🚛</span> Routing</a></li>
                 <li><a href="#" class="nav-item" data-page="alerts"><span>🔔</span> Alerts</a></li>
                 <li><a href="#" class="nav-item" data-page="products"><span>🏷️</span> Products</a></li>
                 <li><a href="#" class="nav-item" data-page="stores"><span>🏪</span> Stores</a></li>
@@ -159,6 +162,196 @@
                                 </thead>
                                 <tbody id="fefoBody">
                                     <tr><td colspan="5" class="loading">Click "Scan Now" to check</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Dynamic Pricing -->
+                <section class="page" id="page-pricing">
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="stat-card success">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="pricingTotal">-</span>
+                                <span class="stat-label">Analyzed</span>
+                            </div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-icon">⚠️</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="pricingAttention">-</span>
+                                <span class="stat-label">Needs Attention</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🏷️</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="pricingBundles">-</span>
+                                <span class="stat-label">Bundles Available</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>💰 Dynamic Pricing Suggestions</h3>
+                            <div class="btn-group">
+                                <button class="btn-sm" onclick="loadPricing()">🔄 Refresh</button>
+                                <button class="action-btn" style="padding:6px 14px;font-size:13px;" onclick="applyPricing()"><span>⚡</span> Apply</button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table" id="pricingTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Current</th>
+                                        <th>Suggested</th>
+                                        <th>Discount</th>
+                                        <th>Strategy</th>
+                                        <th>Urgency</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pricingBody">
+                                    <tr><td colspan="6" class="loading">Loading pricing data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🎯 Bundle Suggestions</h3>
+                            <button class="btn-sm" onclick="loadBundles()">🔄 Refresh</button>
+                        </div>
+                        <div class="alert-list" id="bundleList">
+                            <p class="empty-state">Loading bundles...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Predictive Reorder -->
+                <section class="page" id="page-reorder">
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="stat-card warning">
+                            <div class="stat-icon">📋</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="reorderTotal">-</span>
+                                <span class="stat-label">Products Analyzed</span>
+                            </div>
+                        </div>
+                        <div class="stat-card danger">
+                            <div class="stat-icon">🔴</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="reorderCritical">-</span>
+                                <span class="stat-label">Needs Reorder</span>
+                            </div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="reorderConfidence">-</span>
+                                <span class="stat-label">Avg Confidence</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📋 Reorder Suggestions</h3>
+                            <div class="btn-group">
+                                <button class="btn-sm" onclick="loadReorder()">🔄 Refresh</button>
+                                <button class="btn-sm" onclick="loadReorder('critical')">🔴 Critical</button>
+                                <button class="btn-sm" onclick="loadReorder('high')">🟠 High</button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table" id="reorderTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Stock</th>
+                                        <th>Daily Sales</th>
+                                        <th>Days Left</th>
+                                        <th>Order Qty</th>
+                                        <th>Priority</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reorderBody">
+                                    <tr><td colspan="7" class="loading">Loading reorder data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Secondary Routing -->
+                <section class="page" id="page-routing">
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="stat-card success">
+                            <div class="stat-icon">🚛</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="routingDispatches">-</span>
+                                <span class="stat-label">Total Dispatches</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🌱</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="routingDiverted">-</span>
+                                <span class="stat-label">Units Diverted</span>
+                            </div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-info">
+                                <span class="stat-number" id="routingValue">-</span>
+                                <span class="stat-label">Value Recovered</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🚛 Routing Suggestions</h3>
+                            <button class="btn-sm" onclick="loadRouting()">🔄 Refresh</button>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table" id="routingTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Qty</th>
+                                        <th>Expiry</th>
+                                        <th>Suggested Route</th>
+                                        <th>Value Recovery</th>
+                                        <th>Urgency</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="routingBody">
+                                    <tr><td colspan="6" class="loading">Loading routing suggestions...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📜 Dispatch History</h3>
+                            <button class="btn-sm" onclick="loadRoutingHistory()">🔄 Refresh</button>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table" id="routingHistoryTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Route</th>
+                                        <th>Partner</th>
+                                        <th>Qty</th>
+                                        <th>Value</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="routingHistoryBody">
+                                    <tr><td colspan="6" class="loading">Loading...</td></tr>
                                 </tbody>
                             </table>
                         </div>
