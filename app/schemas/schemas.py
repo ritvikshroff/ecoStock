@@ -1,0 +1,203 @@
+# ============================================================
+# app/schemas/schemas.py
+# ============================================================
+# PURPOSE:
+#   Pydantic models for API request/response validation.
+#   These define the shape of data that flows in/out of the API.
+# ============================================================
+
+from datetime import date, datetime
+from typing import Optional, List
+from pydantic import BaseModel, EmailStr, Field
+
+
+# ── Auth Schemas ──────────────────────────────────────────
+
+class Token(BaseModel):
+    """JWT token response"""
+    access_token: str
+    token_type: str = "bearer"
+
+
+class TokenData(BaseModel):
+    """Data stored inside the JWT token"""
+    user_id: Optional[int] = None
+    role: Optional[str] = None
+
+
+class UserCreate(BaseModel):
+    """Request body for creating a new user"""
+    full_name: str = Field(..., min_length=1, max_length=100)
+    email: str = Field(..., max_length=150)
+    password: str = Field(..., min_length=6, max_length=100)
+    role: Optional[str] = "floor_staff"
+    store_id: Optional[int] = None
+
+
+class UserResponse(BaseModel):
+    """Response body for user data (never exposes password)"""
+    id: int
+    full_name: str
+    email: str
+    role: str
+    store_id: Optional[int] = None
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class LoginRequest(BaseModel):
+    """Request body for login"""
+    email: str
+    password: str
+
+
+# ── Store Schemas ─────────────────────────────────────────
+
+class StoreCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=150)
+    location: Optional[str] = None
+
+
+class StoreResponse(BaseModel):
+    id: int
+    name: str
+    location: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Product Schemas ───────────────────────────────────────
+
+class ProductCreate(BaseModel):
+    sku: str = Field(..., min_length=1, max_length=50)
+    name: str = Field(..., min_length=1, max_length=200)
+    category: str = Field(...)  # One of: dairy, produce, bakery, meat, frozen, beverages, deli, other
+    brand: Optional[str] = None
+    unit: str = "unit"
+    base_price: float = Field(..., gt=0)
+    cost_price: Optional[float] = None
+    typical_shelf_life_days: int = 7
+    discount_trigger_threshold: float = 0.7
+
+
+class ProductResponse(BaseModel):
+    id: int
+    sku: str
+    name: str
+    category: str
+    brand: Optional[str] = None
+    unit: str
+    base_price: float
+    cost_price: Optional[float] = None
+    typical_shelf_life_days: int
+    discount_trigger_threshold: float
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Inventory Batch Schemas ───────────────────────────────
+
+class InventoryBatchCreate(BaseModel):
+    product_id: int
+    store_id: int
+    batch_number: Optional[str] = None
+    barcode: Optional[str] = None
+    manufacture_date: Optional[date] = None
+    expiry_date: date
+    received_date: date
+    initial_quantity: float = Field(..., gt=0)
+    current_quantity: float = Field(..., gt=0)
+    current_price: float = Field(..., gt=0)
+    storage_location: Optional[str] = None
+
+
+class InventoryBatchResponse(BaseModel):
+    id: int
+    product_id: int
+    store_id: int
+    batch_number: Optional[str] = None
+    barcode: Optional[str] = None
+    manufacture_date: Optional[date] = None
+    expiry_date: date
+    received_date: date
+    initial_quantity: float
+    current_quantity: float
+    current_price: float
+    discount_percentage: float
+    status: str
+    storage_location: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ── FEFO Engine Schemas ───────────────────────────────────
+
+class FEFOScanResult(BaseModel):
+    """Result of scanning inventory for FEFO compliance"""
+    batch_id: int
+    product_name: str
+    sku: str
+    expiry_date: date
+    days_until_expiry: int
+    current_quantity: float
+    status: str
+    current_price: float
+    suggested_action: str  # "sell_now", "discount", "flag_for_routing", "ok"
+
+
+class DiscountSuggestion(BaseModel):
+    """Suggested discount for a batch"""
+    batch_id: int
+    product_name: str
+    days_until_expiry: int
+    suggested_discount_pct: float
+    suggested_price: float
+    reason: str
+
+
+# ── Alert Schemas ─────────────────────────────────────────
+
+class AlertResponse(BaseModel):
+    id: int
+    store_id: int
+    assigned_to: Optional[int] = None
+    alert_type: str
+    batch_id: Optional[int] = None
+    title: str
+    message: str
+    priority: int
+    is_read: bool
+    is_resolved: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Generic Response Schemas ──────────────────────────────
+
+class MessageResponse(BaseModel):
+    """Simple message response"""
+    message: str
+    detail: Optional[str] = None
+
+
+class PaginatedResponse(BaseModel):
+    """Wrapper for paginated list responses"""
+    items: List
+    total: int
+    page: int
+    page_size: int
+
