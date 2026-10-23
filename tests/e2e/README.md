@@ -9,7 +9,7 @@
 | BB-05 | Black box | NGO accepts donation → manifest → confirms receipt |
 | WB-01 | White box | Inventory order == `fefoSort()` (expiry ASC, batch-no tie-break) |
 | WB-02 | White box | Markdown panel boundary: exactly `0 ≤ daysToExpiry ≤ 3` |
-| WB-03 | White box | 35 % of $9.80 = $6.37 in state + DOM, ESL sync `idle→syncing→synced`, invalid tier throws, change reaches storefront |
+| WB-03 | White box | 35 % of ₹320 = ₹208 in state + DOM, ESL sync `idle→syncing→synced`, invalid tier throws, change reaches storefront |
 | WB-04 | White box | Dispatch conserves stock (−10), adds history + donation lot, waste KPI +10 kg, no double count |
 | WB-05 | White box | Bid below reserve rejected with no state change; winning bid allocates lot + manifest; NGO cannot bid |
 

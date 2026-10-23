@@ -75,4 +75,6 @@ export function computeKpis({ batches, dispatchedKg, soldKg, recoveredRevenue, l
   };
 }
 
-export const money = (n) => `$${Number(n).toFixed(2)}`;
+export const CURRENCY = "₹";
+export const money = (n) =>
+  `${CURRENCY}${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

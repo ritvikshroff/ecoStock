@@ -140,11 +140,11 @@ def test_wb02_markdown_window_boundaries(b):
 
 @pytest.mark.whitebox
 def test_wb03_markdown_arithmetic_state_and_esl_sync_machine(b):
-    """WB-03  35% on a $9.80 item -> $6.37 in state & DOM; ESL sync goes idle -> syncing -> synced."""
+    """WB-03  35% on a ₹320 item -> ₹208 in state & DOM; ESL sync goes idle -> syncing -> synced."""
     b.open("/manager")
     b.click("nav-pricing")
     assert b.tid("sync-B-1004").get_attribute("data-state") == "idle"
-    assert b.logic("markdownPrice", 9.8, 35) == 6.37
+    assert b.logic("markdownPrice", 320, 35) == 208
     b.click("select-B-1004")
     b.click("tier-35")
     b.click("apply-markdown")
@@ -152,8 +152,8 @@ def test_wb03_markdown_arithmetic_state_and_esl_sync_machine(b):
     assert b.tid("sync-B-1004").get_attribute("data-state") == "syncing"
     WebDriverWait(b.d, 5).until(lambda d: b.tid("sync-B-1004").get_attribute("data-state") == "synced")
     batch = next(x for x in b.state()["batches"] if x["batchNo"] == "B-1004")
-    assert (batch["discountPct"], batch["discountedPrice"]) == (35, 6.37)
-    assert b.text("price-B-1004") == "$6.37"
+    assert (batch["discountPct"], batch["discountedPrice"]) == (35, 208)
+    assert b.text("price-B-1004") == "₹208.00"
     # the invalid-tier guard in markdownPrice() really throws
     err = b.d.execute_script("try{window.__ECOSTOCK__.logic.markdownPrice(10,33);return null}catch(e){return e.message}")
     assert "Invalid markdown tier" in err
@@ -193,21 +193,21 @@ def test_wb04_dispatch_conserves_stock_and_feeds_partner_catalog_and_kpi(b):
 def test_wb05_bid_reserve_price_rule_and_winner_allocation(b):
     """WB-05  Bid < reserve is rejected (state untouched); valid bid accepted; winning allocates lot."""
     b.open("/partner")
-    b.click("bid-L-9001")                         # reserve = 180
-    b.type("bid-amount", "100")
+    b.click("bid-L-9001")                         # reserve = 15000
+    b.type("bid-amount", "8000")
     b.click("bid-submit")
-    assert "reserve price of $180" in b.text("form-error")
+    assert "reserve price of ₹15000" in b.text("form-error")
     assert b.state()["bids"] == []                # rejected -> no state mutation
-    b.type("bid-amount", "200")
+    b.type("bid-amount", "16000")
     b.click("bid-submit")
     s = b.state()
-    assert len(s["bids"]) == 1 and s["bids"][0]["amount"] == 200 and s["bids"][0]["status"] == "Pending"
+    assert len(s["bids"]) == 1 and s["bids"][0]["amount"] == 16000 and s["bids"][0]["status"] == "Pending"
     b.click("nav-bids")
     b.click("accept-BID-1")
     s = b.state()
     assert s["bids"][0]["status"] == "Won"
     assert next(l for l in s["lots"] if l["id"] == "L-9001")["status"] == "allocated"
-    assert len(s["manifests"]) == 1 and s["manifests"][0]["amount"] == 200
+    assert len(s["manifests"]) == 1 and s["manifests"][0]["amount"] == 16000
     # an NGO persona must not be able to bid at all (role guard on the button)
     b.click("nav-catalog")
     b.select("persona-select", "ngo-1")

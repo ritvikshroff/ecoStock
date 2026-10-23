@@ -20,7 +20,7 @@ export function StoreProvider({ children }) {
   const [sync, setSync] = useState({}); // batchId -> "syncing" | "synced"
   const [toasts, setToasts] = useState([]);
   const [apiOnline, setApiOnline] = useState(false);
-  const [revenue, setRevenue] = useState({ list: 480, recovered: 312 });
+  const [revenue, setRevenue] = useState({ list: 38000, recovered: 24700 });
   const [dispatchedKg, setDispatchedKg] = useState(42);
   const seq = useRef(1);
 
@@ -67,7 +67,7 @@ export function StoreProvider({ children }) {
       setDispatchedKg((k) => k + kg);
       if (channel !== "compost") {
         setLots((l) => [
-          { id: `L-${id}`, title: `${batch.product} (${batch.batchNo})`, type: channel === "ngo" ? "donation" : "wholesale", kg, units: n, expiry: batch.expiry, reserve: channel === "b2b" ? Math.round(kg * 2) : 0, origin: batch.store, status: "open", counted: true },
+          { id: `L-${id}`, title: `${batch.product} (${batch.batchNo})`, type: channel === "ngo" ? "donation" : "wholesale", kg, units: n, expiry: batch.expiry, reserve: channel === "b2b" ? Math.round(kg * 150) : 0, origin: batch.store, status: "open", counted: true },
           ...l,
         ]);
       }
@@ -120,9 +120,9 @@ export function StoreProvider({ children }) {
       const n = Number(amount);
       if (!lot || lot.type !== "wholesale") return { ok: false, error: "Bids apply to wholesale lots only." };
       if (!(n > 0)) return { ok: false, error: "Enter a bid amount greater than 0." };
-      if (n < lot.reserve) return { ok: false, error: `Bid must meet the reserve price of $${lot.reserve}.` };
+      if (n < lot.reserve) return { ok: false, error: `Bid must meet the reserve price of ₹${lot.reserve}.` };
       setBids((b) => [{ id: `BID-${b.length + 1}`, lotId, title: lot.title, amount: n, bidder, status: "Pending" }, ...b]);
-      toast(`Bid of $${n} submitted for ${lot.title}.`);
+      toast(`Bid of ₹${n} submitted for ${lot.title}.`);
       return { ok: true };
     },
     [lots, toast]
