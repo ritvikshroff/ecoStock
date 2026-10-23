@@ -46,7 +46,7 @@ export default function Catalog({ persona }) {
       <Modal open={!!bidLot} title={`Bid on ${bidLot?.title}`} onClose={() => setBidLot(null)} testid="bid-modal">
         {bidLot && (<>
           <p className="text-sm text-slate-600">Reserve price: <b>{money(bidLot.reserve)}</b> · {bidLot.kg} kg</p>
-          <label className="mt-3 block text-sm font-medium text-slate-700">Your bid (USD)
+          <label className="mt-3 block text-sm font-medium text-slate-700">Your bid (INR)
             <input className={`${inputCls} mt-1`} type="text" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value); setError(null); }} data-testid="bid-amount" />
           </label>
           <FormError>{error}</FormError>
