@@ -43,9 +43,24 @@ def _port_open(port):
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
+def _assert_is_ecostock(url):
+    """Fail fast if something else (e.g. the FastAPI backend) is answering on the port."""
+    try:
+        html = urllib.request.urlopen(url, timeout=3).read().decode("utf-8", "replace")
+    except Exception as e:
+        pytest.exit(f"Nothing usable at {url} ({e}). Free the port or set ECOSTOCK_PORT=<free port>.", returncode=2)
+    if 'data-testid="landing-title"' not in html:
+        pytest.exit(
+            f"{url} is responding, but it is not the ecoStock frontend (another app is using the port). "
+            "Stop it, or run with a free port, e.g.  ECOSTOCK_PORT=3100 pytest tests/e2e",
+            returncode=2,
+        )
+
+
 @pytest.fixture(scope="session")
 def server():
     if "BASE_URL" in os.environ or _port_open(PORT):
+        _assert_is_ecostock(BASE_URL)
         yield BASE_URL
         return
     if not os.path.isdir(os.path.join(FRONTEND, "node_modules")):
