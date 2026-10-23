@@ -37,9 +37,11 @@ from app.db.database import Base
 
 class UserRole(str, enum.Enum):
     """Who can do what in ecoStock"""
-    ADMIN           = "admin"           # Full access
+    ADMIN           = "admin"           # Full access — manage all users
     STORE_MANAGER   = "store_manager"   # Can override discount thresholds
     FLOOR_STAFF     = "floor_staff"     # Can only complete tasks
+    SHOPKEEPER      = "shopkeeper"      # Shopkeeper dashboard — FEFO/inventory
+    CUSTOMER        = "customer"        # Customer dashboard — shop + track orders
 
 class ProductCategory(str, enum.Enum):
     """
@@ -321,4 +323,55 @@ class ReorderLog(Base):
     actioned_at         = Column(DateTime, nullable=True)
 
     created_at          = Column(DateTime, server_default=func.now())
+
+
+# ============================================================
+# TABLE 9: orders  (Customer orders — Amazon-style tracking)
+# ============================================================
+
+class OrderStatus(str, enum.Enum):
+    PENDING     = "pending"     # Order placed, not yet processed
+    CONFIRMED   = "confirmed"   # Shopkeeper confirmed the order
+    PACKED      = "packed"      # Order packed and ready for dispatch
+    SHIPPED     = "shipped"     # Order out for delivery
+    DELIVERED   = "delivered"   # Order delivered to customer
+    CANCELLED   = "cancelled"   # Order cancelled
+
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    order_number    = Column(String(20), unique=True, nullable=False, index=True)
+    customer_id     = Column(Integer, ForeignKey("users.id"), nullable=False)
+    store_id        = Column(Integer, ForeignKey("stores.id"), nullable=True)
+
+    # ── Status & Totals ─────────────────────────────────────
+    status          = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    total_amount    = Column(Float, default=0.0)
+    shipping_address = Column(Text, nullable=True)
+
+    # ── Timestamps ──────────────────────────────────────────
+    created_at      = Column(DateTime, server_default=func.now())
+    updated_at      = Column(DateTime, onupdate=func.now())
+
+    # ── Relationships ───────────────────────────────────────
+    customer        = relationship("User", foreign_keys=[customer_id])
+    store           = relationship("Store")
+    items           = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    order_id    = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    product_id  = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity    = Column(Float, nullable=False)
+    unit_price  = Column(Float, nullable=False)
+    total_price = Column(Float, nullable=False)
+
+    # ── Relationships ───────────────────────────────────────
+    order       = relationship("Order", back_populates="items")
+    product     = relationship("Product")
 

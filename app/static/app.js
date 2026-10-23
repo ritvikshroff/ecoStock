@@ -46,6 +46,8 @@ let state = {
     user: JSON.parse(localStorage.getItem('ecostock_user') || 'null'),
 };
 
+updateUI();
+
 // ============================================================
 // TOAST NOTIFICATIONS
 // ============================================================
@@ -679,20 +681,349 @@ async function loadRoutingHistory() {
 }
 
 // ============================================================
-// INIT
+// ROLE-BASED ACCESS & CODE LOGIN
 // ============================================================
-document.addEventListener('DOMContentLoaded', () => {
+
+const ROLE_CODES = {
+    admin: 'admin@customcode',
+    shopkeeper: 'SHOP@code',
+    distributor: 'DIS@code',
+};
+
+const ROUTE_BY_ROLE = {
+    admin: ['dashboard', 'inventory', 'fefo', 'pricing', 'reorder', 'routing', 'alerts', 'products', 'stores', 'admin-dashboard'],
+    shopkeeper: ['dashboard', 'inventory', 'fefo', 'pricing', 'reorder', 'routing', 'alerts', 'products', 'stores'],
+    customer: ['customer-shop'],
+    floor_staff: ['dashboard', 'inventory', 'fefo', 'alerts'],
+    store_manager: ['dashboard', 'inventory', 'fefo', 'pricing', 'reorder', 'routing', 'alerts', 'products', 'stores'],
+};
+
+let cart = [];
+
+function showAdminCodeModal() {
+    document.getElementById('adminCodeModal').classList.add('active');
+    document.getElementById('adminCodeInput').value = '';
+    document.getElementById('adminCodeInput').focus();
+}
+function closeAdminCodeModal() {
+    document.getElementById('adminCodeModal').classList.remove('active');
+}
+function showShopkeeperCodeModal() {
+    document.getElementById('shopkeeperCodeModal').classList.add('active');
+    document.getElementById('shopkeeperCodeInput').value = '';
+    document.getElementById('shopkeeperCodeInput').focus();
+}
+function closeShopkeeperCodeModal() {
+    document.getElementById('shopkeeperCodeModal').classList.remove('active');
+}
+// ── Validate admin code ──
+async function handleAdminCode(e) {
+    e.preventDefault();
+    const code = document.getElementById('adminCodeInput').value.trim();
+    if (code === ROLE_CODES.admin) {
+        closeAdminCodeModal();
+        try {
+            const result = await API.post('/api/v1/auth/login', { email: 'admin@ecostock.com', password: 'admin123' });
+            state.token = result.access_token;
+            localStorage.setItem('ecostock_token', result.access_token);
+            const user = await API.get('/api/v1/auth/me');
+            state.user = user;
+            localStorage.setItem('ecostock_user', JSON.stringify(user));
+            updateUI();
+            loadAllData();
+            toast('Admin access granted 👑', 'success');
+        } catch (err) {
+            toast('Admin login failed: ' + err.message, 'error');
+        }
+    } else {
+        toast('Invalid admin code. Use: admin@customcode', 'error');
+    }
+    return false;
+}
+
+// ── Validate shopkeeper code ──
+async function handleShopkeeperCode(e) {
+    e.preventDefault();
+    const code = document.getElementById('shopkeeperCodeInput').value.trim();
+    if (code === ROLE_CODES.shopkeeper) {
+        closeShopkeeperCodeModal();
+        try {
+            const result = await API.post('/api/v1/auth/login', { email: 'shopkeeper@ecostock.com', password: 'shop123' });
+            state.token = result.access_token;
+            localStorage.setItem('ecostock_token', result.access_token);
+            const user = await API.get('/api/v1/auth/me');
+            state.user = user;
+            localStorage.setItem('ecostock_user', JSON.stringify(user));
+            updateUI();
+            loadAllData();
+            toast('Shopkeeper access granted 🏪', 'success');
+        } catch (err) {
+            toast('Shopkeeper login failed: ' + err.message, 'error');
+        }
+    } else {
+        toast('Invalid shopkeeper code. Use: shop@customrcode', 'error');
+    }
+    return false;
+}
+
+// ── Switch role (with code validation) ──
+async function switchRole() {
+    const select = document.getElementById('roleSelect');
+    const targetRole = select.value;
+    const currentRole = state.user ? state.user.role : null;
+
+    if (targetRole === currentRole) {
+        toast('Already in ' + targetRole + ' role', 'info');
+        return;
+    }
+
+    if (targetRole === 'admin') {
+        showAdminCodeModal();
+        return;
+    }
+    if (targetRole === 'shopkeeper') {
+        showShopkeeperCodeModal();
+        return;
+    }
+    if (targetRole === 'distributor') {
+        showDistributorCodeModal();
+        return;
+    }
+
+    if (targetRole === 'customer') {
+        try {
+            const result = await API.post('/api/v1/auth/login', { email: 'customer@ecostock.com', password: 'cust123' });
+            state.token = result.access_token;
+            localStorage.setItem('ecostock_token', result.access_token);
+            const user = await API.get('/api/v1/auth/me');
+            state.user = user;
+            localStorage.setItem('ecostock_user', JSON.stringify(user));
+            updateUI();
+            loadAllData();
+            toast('Switched to Customer role 🛒', 'success');
+        } catch (err) {
+            toast('Customer switch failed: ' + err.message, 'error');
+        }
+        return;
+    }
+
+    toast('Role switch not supported for: ' + targetRole, 'error');
+}
+
+// ============================================================
+// CUSTOMER DASHBOARD FUNCTIONS
+// ============================================================
+
+async function loadCustomerProducts() {
+    if (!state.token) return;
+    try {
+        const products = await API.get('/api/v1/customer/products');
+        const grid = document.getElementById('customerProductGrid');
+        if (products.length === 0) {
+            grid.innerHTML = '<p class="empty-state">No products available</p>';
+            return;
+        }
+        grid.innerHTML = products.map(p => {
+            const inCart = cart.findIndex(c => c.product_id === p.id) >= 0;
+            return `
+                <div class="product-card">
+                    <div class="product-image">📦</div>
+                    <div class="product-info">
+                        <h4>${p.name}</h4>
+                        <p class="product-category">${p.category}</p>
+                        <p class="product-price">₹${p.base_price.toFixed(2)} / ${p.unit}</p>
+                        <p class="product-sku">SKU: ${p.sku}</p>
+                    </div>
+                    <button class="btn-primary" onclick="addToCart(${p.id}, '${p.name}', ${p.base_price})" ${inCart ? 'disabled' : ''}>
+                        ${inCart ? 'In Cart' : 'Add to Cart'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        document.getElementById('customerProductGrid').innerHTML = '<p class="empty-state">Error loading products</p>';
+        toast(err.message, 'error');
+    }
+}
+
+function addToCart(productId, name, price) {
+    const existing = cart.find(c => c.product_id === productId);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({ product_id: productId, name, price, quantity: 1 });
+    }
+    updateCartUI();
+    toast('Added ' + name + ' to cart', 'success');
+}
+
+function filterCustomerProducts() {
+    const search = document.getElementById('customerSearch').value.toLowerCase();
+    const cards = document.querySelectorAll('.product-card');
+    cards.forEach(card => {
+        const name = card.querySelector('h4').textContent.toLowerCase();
+        const sku = card.querySelector('.product-sku').textContent.toLowerCase();
+        if (name.includes(search) || sku.includes(search)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function updateCartUI() {
+    const countEl = document.getElementById('cartCount');
+    const itemsEl = document.getElementById('cartItems');
+    const totalEl = document.getElementById('cartTotal');
+    const checkoutBtn = document.getElementById('checkoutBtn');
+
+    const totalItems = cart.reduce((sum, c) => sum + c.quantity, 0);
+    const totalAmount = cart.reduce((sum, c) => sum + c.price * c.quantity, 0);
+
+    countEl.textContent = totalItems;
+    totalEl.textContent = '₹' + totalAmount.toFixed(2);
+    checkoutBtn.disabled = cart.length === 0;
+
+    if (cart.length === 0) {
+        itemsEl.innerHTML = '<p class="empty-state">Your cart is empty</p>';
+        return;
+    }
+
+    itemsEl.innerHTML = cart.map((c, i) => `
+        <div class="cart-item">
+            <div class="cart-item-info">
+                <strong>${c.name}</strong><br>
+                <small>₹${c.price.toFixed(2)} x ${c.quantity}</small>
+            </div>
+            <div class="cart-item-actions">
+                <button class="btn-sm" onclick="changeCartQty(${i}, -1)">−</button>
+                <button class="btn-sm" onclick="changeCartQty(${i}, 1)">+</button>
+                <button class="btn-sm" onclick="removeFromCart(${i})" style="color:#dc2626;">Remove</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadCustomerOrders() {
+    if (!state.token) return;
+    try {
+        const orders = await API.get('/api/v1/customer/orders');
+        const container = document.getElementById('customerOrderList');
+        if (orders.length === 0) {
+            container.innerHTML = '<p class="empty-state">No orders yet</p>';
+            return;
+        }
+        const statusColors = {
+            pending: '#f59e0b',
+            confirmed: '#3b82f6',
+            packed: '#8b5cf6',
+            shipped: '#06b6d4',
+            delivered: '#10b981',
+            cancelled: '#ef4444',
+        };
+        container.innerHTML = orders.map(o => `
+            <div class="order-card">
+                <div class="order-header">
+                    <div class="order-number">Order #${o.order_number}</div>
+                    <div class="order-date">${new Date(o.created_at).toLocaleDateString()}</div>
+                </div>
+                <div class="order-status" style="color:${statusColors[o.status] || '#666'}">
+                    ● ${o.status.toUpperCase()}
+                </div>
+                <div class="order-items">
+                    ${o.items.map(i => `${i.product_name} × ${i.quantity}`).join(', ')}
+                </div>
+                <div class="order-total">Total: ₹${o.total_amount.toFixed(2)}</div>
+            </div>
+        `).join('');
+    } catch (err) {
+        document.getElementById('customerOrderList').innerHTML = '<p class="empty-state">Error loading orders</p>';
+        toast(err.message, 'error');
+    }
+}
+
+// ============================================================
+// ADMIN DASHBOARD FUNCTIONS
+// ============================================================
+
+async function loadAdminUsers() {
+    if (!state.token) return;
+    try {
+        const users = await API.get('/api/v1/admin/users');
+        const stats = await API.get('/api/v1/admin/stats');
+        document.getElementById('adminTotalUsers').textContent = stats.total_users;
+        document.getElementById('adminActiveUsers').textContent = stats.active_users;
+        document.getElementById('adminAdmins').textContent = stats.admin_users;
+        document.getElementById('adminCustomers').textContent = stats.customer_users;
+
+        const tbody = document.getElementById('adminUsersBody');
+        const roleColors = { admin: '#6b21a8', shopkeeper: '#d97706', customer: '#3b82f6', floor_staff: '#64748b', store_manager: '#059669' };
+        tbody.innerHTML = users.map(u => `
+            <tr>
+                <td>${u.id}</td>
+                <td><strong>${u.full_name}</strong></td>
+                <td>${u.email}</td>
+                <td><span class="badge" style="background:${roleColors[u.role] || '#666'}">${u.role.replace('_', ' ')}</span></td>
+                <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-expired'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td>
+                    <select class="role-select-sm" onchange="updateUserRole(${u.id}, this.value)">
+                        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+                        <option value="shopkeeper" ${u.role === 'shopkeeper' ? 'selected' : ''}>Shopkeeper</option>
+                        <option value="customer" ${u.role === 'customer' ? 'selected' : ''}>Customer</option>
+                        <option value="floor_staff" ${u.role === 'floor_staff' ? 'selected' : ''}>Floor Staff</option>
+                        <option value="store_manager" ${u.role === 'store_manager' ? 'selected' : ''}>Store Manager</option>
+                    </select>
+                    <button class="btn-sm" onclick="toggleUserActive(${u.id}, ${u.is_active})" style="background:${u.is_active ? '#dc2626' : '#10b981'};">
+                        ${u.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        document.getElementById('adminUsersBody').innerHTML = '<tr><td colspan="6" class="loading">Error loading users</td></tr>';
+        toast(err.message, 'error');
+    }
+}
+
+async function updateUserRole(userId, newRole) {
+    try {
+        await API.patch('/api/v1/admin/users/' + userId, { role: newRole });
+        toast('User role updated to ' + newRole, 'success');
+        loadAdminUsers();
+    } catch (err) {
+        toast('Failed to update role: ' + err.message, 'error');
+        loadAdminUsers();
+    }
+}
+
+async function toggleUserActive(userId, currentlyActive) {
+    try {
+        await API.patch('/api/v1/admin/users/' + userId, { is_active: !currentlyActive });
+        toast('User ' + (!currentlyActive ? 'activated' : 'deactivated'), 'success');
+        loadAdminUsers();
+    } catch (err) {
+        toast('Failed to update user: ' + err.message, 'error');
+    }
+}
+
+// ============================================================
+// AUTO-LOGIN (BYPASS) — land directly on the dashboard
+// ============================================================
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!state.token || !state.user) {
+        await autoLogin();
+    }
     updateUI();
     if (state.token) {
         loadAllData();
         runScan();
     }
 });
-
-// Auto-refresh every 30 seconds
-setInterval(() => {
     if (state.token) {
-        loadDashboard();
+    try {
+        await API.patch('/api/v1/admin/users/' + userId, { is_active: !currentlyActive });
+        toast('User ' + (!currentlyActive ? 'activated' : 'deactivated'), 'success');
+        loadAdminUsers();
+    } catch (err) {
+        toast('Failed to update user: ' + err.message, 'error');
     }
-}, 30000);
-

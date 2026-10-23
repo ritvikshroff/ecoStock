@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ecoStock 🥬</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🥬%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -37,6 +38,17 @@
                 <li><a href="#" class="nav-item" data-page="stores"><span>🏪</span> Stores</a></li>
             </ul>
             <div class="sidebar-footer">
+                <!-- Role Switcher -->
+                <div class="role-switcher" id="roleSwitcher" style="display:none;">
+                    <label class="role-switch-label">Switch Role:</label>
+                    <select id="roleSelect" class="role-select">
+                        <option value="admin">👑 Admin</option>
+                        <option value="shopkeeper">🏪 Shopkeeper</option>
+                        <option value="distributor">📦 Distributor</option>
+                        <option value="customer">🛒 Customer</option>
+                    </select>
+                    <button class="btn-sm" onclick="switchRole()">Switch</button>
+                </div>
                 <button class="btn-logout" id="logoutBtn">🚪 Logout</button>
             </div>
         </nav>
@@ -424,6 +436,65 @@
                     </div>
                 </section>
 
+                <!-- ===== CUSTOMER DASHBOARD - SHOP ===== -->
+                <section class="page" id="page-customer-shop">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🛒 Shop Products</h3>
+                            <div class="btn-group">
+                                <button class="btn-sm" onclick="loadCustomerProducts()">🔄 Refresh</button>
+                                <button class="btn-sm" onclick="loadCustomerOrders()">📦 My Orders</button>
+                            </div>
+                        </div>
+                        <div class="customer-dashboard-grid">
+                            <div class="customer-panel">
+                                <div class="panel-header">
+                                    <h4>🛍️ Available Products</h4>
+                                    <input type="text" id="customerSearch" placeholder="Search products..." onkeyup="filterCustomerProducts()" class="customer-search">
+                                </div>
+                                <div class="product-grid" id="customerProductGrid">
+                                    <p class="empty-state">Loading products...</p>
+                                </div>
+                            </div>
+                            <div class="customer-panel cart-panel">
+                                <div class="panel-header">
+                                    <h4>🛒 Your Cart <span id="cartCount" class="cart-badge">0</span></h4>
+                                </div>
+                                <div class="cart-items" id="cartItems">
+                                    <p class="empty-state">Your cart is empty</p>
+                                </div>
+                                <div class="cart-footer">
+                                    <div class="cart-total"><span>Total:</span> <span id="cartTotal">₹0.00</span></div>
+                                    <button class="btn-primary" onclick="checkoutOrder()" id="checkoutBtn" disabled>Place Order</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>📦 Order Tracking</h3></div>
+                        <div class="order-tracking-list" id="customerOrderList"><p class="empty-state">No orders yet</p></div>
+                    </div>
+                </section>
+
+                <!-- ===== ADMIN DASHBOARD - USER MANAGEMENT ===== -->
+                <section class="page" id="page-admin-dashboard">
+                    <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-info"><span class="stat-number" id="adminTotalUsers">-</span><span class="stat-label">Total Users</span></div></div>
+                        <div class="stat-card success"><div class="stat-icon">✅</div><div class="stat-info"><span class="stat-number" id="adminActiveUsers">-</span><span class="stat-label">Active Users</span></div></div>
+                        <div class="stat-card"><div class="stat-icon">👑</div><div class="stat-info"><span class="stat-number" id="adminAdmins">-</span><span class="stat-label">Admins</span></div></div>
+                        <div class="stat-card"><div class="stat-icon">🛒</div><div class="stat-info"><span class="stat-number" id="adminCustomers">-</span><span class="stat-label">Customers</span></div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>👥 All Users Management</h3><div class="btn-group"><button class="btn-sm" onclick="loadAdminUsers()">🔄 Refresh</button></div></div>
+                        <div class="table-container">
+                            <table class="data-table" id="adminUsersTable">
+                                <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody id="adminUsersBody"><tr><td colspan="6" class="loading">Loading users...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
             </div>
         </main>
     </div>
@@ -482,11 +553,79 @@
                             <option value="floor_staff">Floor Staff</option>
                             <option value="store_manager">Store Manager</option>
                             <option value="admin">Admin</option>
+                            <option value="shopkeeper">Shopkeeper</option>
+                            <option value="customer">Customer</option>
                         </select>
                     </div>
                     <button type="submit" class="btn-primary">Create Account</button>
                 </form>
                 <p class="register-link">Already have an account? <a href="#" onclick="showLogin()">Sign In</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== ADMIN CODE LOGIN MODAL ====== -->
+    <div class="modal-overlay" id="adminCodeModal">
+        <div class="modal admin-code-modal">
+            <div class="modal-header" style="background:linear-gradient(135deg,#6b21a8,#4c1d95);">
+                <div class="modal-logo">👑 Admin Access</div>
+                <p>Administrator Authorization Required</p>
+            </div>
+            <div class="modal-body">
+                <p class="code-hint">Enter admin access code:</p>
+                <form id="adminCodeForm" onsubmit="return handleAdminCode(event)">
+                    <div class="form-group">
+                        <label>Admin Code</label>
+                        <input type="text" id="adminCodeInput" placeholder="admin@customcode" required maxlength="50">
+                        <small class="code-hint">Format: admin@customcode</small>
+                    </div>
+                    <button type="submit" class="btn-primary" style="background:#6b21a8;">Authorize Admin</button>
+                </form>
+                <p class="register-link" style="margin-top:16px;">Already have admin credentials? <a href="#" onclick="closeAdminCodeModal(); showLogin();">Sign In</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== SHOPKEEPER CODE LOGIN MODAL ====== -->
+    <div class="modal-overlay" id="shopkeeperCodeModal">
+        <div class="modal shopkeeper-code-modal">
+            <div class="modal-header" style="background:linear-gradient(135deg,#d97706,#b45309);">
+                <div class="modal-logo">🏪 Shopkeeper Access</div>
+                <p>Shopkeeper Authorization Required</p>
+            </div>
+            <div class="modal-body">
+                <p class="code-hint">Enter shopkeeper access code:</p>
+                <form id="shopkeeperCodeForm" onsubmit="return handleShopkeeperCode(event)">
+                    <div class="form-group">
+                        <label>Shopkeeper Code</label>
+                        <input type="text" id="shopkeeperCodeInput" placeholder="SHOP@code" required maxlength="50">
+                        <small class="code-hint">Format: SHOP@code</small>
+                    </div>
+                    <button type="submit" class="btn-primary" style="background:#d97706;">Authorize Shopkeeper</button>
+                </form>
+                <p class="register-link" style="margin-top:16px;">Already have shopkeeper credentials? <a href="#" onclick="closeShopkeeperCodeModal(); showLogin();">Sign In</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distributor Code Modal -->
+    <div class="modal-overlay" id="distributorCodeModal">
+        <div class="modal shopkeeper-code-modal">
+            <div class="modal-header" style="background:linear-gradient(135deg,#1e3a8a,#1e40af);">
+                <div class="modal-logo">📦 Distributor Access</div>
+                <p>Distributor Authorization Required</p>
+            </div>
+            <div class="modal-body">
+                <p class="code-hint">Enter distributor access code:</p>
+                <form id="distributorCodeForm" onsubmit="return handleDistributorCode(event)">
+                    <div class="form-group">
+                        <label>Distributor Code</label>
+                        <input type="text" id="distributorCodeInput" placeholder="DIS@code" required maxlength="50">
+                        <small class="code-hint">Format: DIS@code</small>
+                    </div>
+                    <button type="submit" class="btn-primary" style="background:#1e3a8a;">Authorize Distributor</button>
+                </form>
+                <p class="register-link" style="margin-top:16px;">Already have distributor credentials? <a href="#" onclick="closeDistributorCodeModal(); showLogin();">Sign In</a></p>
             </div>
         </div>
     </div>

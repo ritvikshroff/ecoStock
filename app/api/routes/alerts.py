@@ -18,7 +18,7 @@ from app.schemas.schemas import AlertResponse, MessageResponse
 router = APIRouter()
 
 
-@router.get("/alerts", response_model=List[AlertResponse])
+@router.get("/", response_model=List[AlertResponse])
 def list_alerts(
     store_id: Optional[int] = None,
     unresolved: bool = False,
@@ -38,7 +38,7 @@ def list_alerts(
     return query.limit(limit).all()
 
 
-@router.patch("/alerts/{alert_id}/read", response_model=AlertResponse)
+@router.patch("/{alert_id}/read", response_model=AlertResponse)
 def mark_alert_read(alert_id: int, db: Session = Depends(get_db)):
     """Mark an alert as read."""
     alert = db.query(Alert).filter(Alert.id == alert_id).first()
@@ -50,7 +50,7 @@ def mark_alert_read(alert_id: int, db: Session = Depends(get_db)):
     return alert
 
 
-@router.patch("/alerts/{alert_id}/resolve", response_model=AlertResponse)
+@router.patch("/{alert_id}/resolve", response_model=AlertResponse)
 def resolve_alert(alert_id: int, db: Session = Depends(get_db)):
     """Mark an alert as resolved."""
     alert = db.query(Alert).filter(Alert.id == alert_id).first()

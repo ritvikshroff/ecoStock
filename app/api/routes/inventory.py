@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.models import (
-    Product, InventoryBatch, BatchStatus, ProductCategory
+    Product, InventoryBatch, BatchStatus, ProductCategory, User
 )
 from app.schemas.schemas import (
     ProductCreate, ProductResponse,
@@ -22,6 +22,7 @@ from app.schemas.schemas import (
     FEFOScanResult, MessageResponse
 )
 from app.services.fefo_engine import FEFOEngine
+from app.api.routes.auth import get_current_user
 
 router = APIRouter()
 
@@ -31,7 +32,7 @@ router = APIRouter()
 # ============================================================
 
 @router.post("/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-def create_product(product_data: ProductCreate, db: Session = Depends(get_db)):
+def create_product(product_data: ProductCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Add a new product to the master catalog."""
     # Check SKU uniqueness
     existing = db.query(Product).filter(Product.sku == product_data.sku).first()
@@ -61,6 +62,7 @@ def list_products(
     category: Optional[str] = None,
     search: Optional[str] = None,
     active_only: bool = True,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List all products, with optional filtering by category or search term."""
@@ -82,7 +84,7 @@ def list_products(
 
 
 @router.get("/products/{product_id}", response_model=ProductResponse)
-def get_product(product_id: int, db: Session = Depends(get_db)):
+def get_product(product_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get a single product by ID."""
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
@@ -95,7 +97,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 # ============================================================
 
 @router.post("/batches", response_model=InventoryBatchResponse, status_code=status.HTTP_201_CREATED)
-def create_batch(batch_data: InventoryBatchCreate, db: Session = Depends(get_db)):
+def create_batch(batch_data: InventoryBatchCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Receive a new inventory batch (stock arrival)."""
     # Verify product exists
     product = db.query(Product).filter(Product.id == batch_data.product_id).first()
@@ -128,6 +130,7 @@ def list_batches(
     product_id: Optional[int] = None,
     status: Optional[str] = None,
     expiring_soon: bool = False,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List inventory batches with optional filters."""
@@ -147,7 +150,7 @@ def list_batches(
 
 
 @router.get("/batches/{batch_id}", response_model=InventoryBatchResponse)
-def get_batch(batch_id: int, db: Session = Depends(get_db)):
+def get_batch(batch_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get a single batch by ID."""
     batch = db.query(InventoryBatch).filter(InventoryBatch.id == batch_id).first()
     if not batch:
@@ -160,14 +163,14 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)):
 # ============================================================
 
 @router.get("/fefo/scan", response_model=List[FEFOScanResult])
-def fefo_scan_inventory(store_id: Optional[int] = None, db: Session = Depends(get_db)):
+def fefo_scan_inventory(store_id: Optional[int] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Scan inventory using FEFO logic — see what needs attention."""
     engine = FEFOEngine(db)
     return engine.scan_inventory(store_id=store_id)
 
 
 @router.post("/fefo/apply-discounts", response_model=MessageResponse)
-def fefo_apply_discounts(store_id: Optional[int] = None, db: Session = Depends(get_db)):
+def fefo_apply_discounts(store_id: Optional[int] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Auto-apply discounts to near-expiry batches."""
     engine = FEFOEngine(db)
     applied = engine.apply_auto_discounts(store_id=store_id)
@@ -188,7 +191,7 @@ def fefo_apply_discounts(store_id: Optional[int] = None, db: Session = Depends(g
 
 
 @router.post("/fefo/flag-routing", response_model=MessageResponse)
-def fefo_flag_routing(store_id: Optional[int] = None, db: Session = Depends(get_db)):
+def fefo_flag_routing(store_id: Optional[int] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Flag near-expiry batches for food bank / B2B / composting routing."""
     engine = FEFOEngine(db)
     flagged = engine.flag_for_routing(store_id=store_id)
@@ -208,7 +211,7 @@ def fefo_flag_routing(store_id: Optional[int] = None, db: Session = Depends(get_
 
 
 @router.post("/fefo/run-pipeline", response_model=MessageResponse)
-def fefo_run_pipeline(store_id: Optional[int] = None, db: Session = Depends(get_db)):
+def fefo_run_pipeline(store_id: Optional[int] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Run the full FEFO pipeline: scan → discount → flag routing."""
     engine = FEFOEngine(db)
     result = engine.run_full_pipeline(store_id=store_id)

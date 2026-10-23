@@ -321,3 +321,51 @@ class PaginatedResponse(BaseModel):
     page: int
     page_size: int
 
+
+# ── Order Schemas ──────────────────────────────────────────
+
+class OrderItemBase(BaseModel):
+    product_id: int
+    quantity: float = Field(..., gt=0)
+
+
+class OrderItemCreate(OrderItemBase):
+    pass
+
+
+class OrderItemResponse(OrderItemBase):
+    id: int
+    order_id: int
+    unit_price: float
+    total_price: float
+    product_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class OrderBase(BaseModel):
+    store_id: Optional[int] = None
+    shipping_address: Optional[str] = None
+
+
+class OrderCreate(OrderBase):
+    items: List[OrderItemCreate]
+
+
+class OrderResponse(OrderBase):
+    id: int
+    order_number: str
+    customer_id: int
+    status: str
+    total_amount: float
+    created_at: datetime
+    items: List[OrderItemResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class OrderStatusUpdate(BaseModel):
+    status: str
+

@@ -17,6 +17,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
+from fastapi import HTTPException
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -28,6 +29,20 @@ from app.core.config import settings
 # (makes brute-force attacks very hard)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+# ── Token Extraction Helper ──────────────────────────────
+def extract_token(authorization: str = "") -> str:
+    """
+    Extracts the JWT token from the Authorization header.
+    Expected format: "Bearer <token>"
+    """
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header. Use: Bearer <token>"
+        )
+    return authorization.replace("Bearer ", "")
 
 
 # ============================================================
